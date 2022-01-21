@@ -26,6 +26,30 @@ a few minutes or update the app."
 	fi
 }
 
+get_info() {
+	video_id=$(jq -r .\[$1\].id <<< "$data")
+	video_group=$(jq -r .\[$1\].group <<< "$data")
+	if [ $video_group = other ]; then video_group=$group; fi
+	video_rdata=$(http $MAIN_URL/$video_group/$video_id |\
+		xmllint --html --xpath '//script[@id="__NEXT_DATA__"]/text()' - 2>/dev/null)
+
+	video_cdata=${video_rdata:9: -3}
+	video_data=$(jq .props.pageProps.video <<< "$video_cdata")
+
+	jq -j '
+		.title,
+		", uploaded by ", .uploader.name,
+		" | ", .views, " views\n",
+		if .models | length > 0 then
+			"models: ", (.models | join(", "))
+		else
+			"unknown models "
+		end
+		, "| notes: ", (.votes | to_entries[] | .key, ": ", .value, " ")
+		, "\n"
+	' <<< "$video_data"
+}
+
 check_video() {
 	if [ $1 -gt $length ]; then
 		echo Invalid video.
@@ -35,7 +59,8 @@ check_video() {
 
 fetch_video() {
 	video_id=$(jq -r .\[$1\].id <<< "$data")
-	http $MAIN_URL/$group/$video_id | xmllint --html \
+	video_group=$(jq -r .\[$1\].group <<< "$data")
+	http $MAIN_URL/$video_group/$video_id | xmllint --html \
 		--xpath 'string(//video/@src)' - 2>/dev/null
 }
 
@@ -77,6 +102,7 @@ in - go i pages forward
 ip - go i pages backward
 is - show ith video's preview
 id - download ith video
+ii - show info for ith video
 c - set current category
 l - list current page's videos
 q - quit
@@ -89,6 +115,7 @@ c snapchat - snapchat videos
 8 - watch the 8th video
 17s - show 17th video's thumbnail
 d - downloads the 17th video (because of 17s)
+18i - shows info for the 18th video
 3n - go 3 pages forward (1 -> 4)
 p - go to the previous page (4 -> 3)"
 			;;
@@ -118,6 +145,13 @@ p - go to the previous page (4 -> 3)"
 
 			last=$video
 			download_video $video
+			;;
+		i)
+			get_info $last
+			;;
+		[0-9]i|[0-9][0-9]i)
+			video=${ANSWER%i}
+			get_info $video
 			;;
 		d)
 			download_video $last
