@@ -27,8 +27,8 @@ a few minutes or update the app."
 }
 
 get_info() {
-	video_id=$(jq -r .\[$1\].id <<< "$data")
-	video_group=$(jq -r .\[$1\].group <<< "$data")
+	video_id=$(jq -r .\[$(($1-1))\].id <<< "$data")
+	video_group=$(jq -r .\[$(($1-1))\].group <<< "$data")
 	if [ $video_group = other ]; then video_group=$group; fi
 	video_rdata=$(http $MAIN_URL/$video_group/$video_id |\
 		xmllint --html --xpath '//script[@id="__NEXT_DATA__"]/text()' - 2>/dev/null)
@@ -51,21 +51,22 @@ get_info() {
 }
 
 check_video() {
-	if [ $1 -gt $length ]; then
+	if [ $1 -gt $((length+1)) ]; then
 		echo Invalid video.
 		continue
 	fi
 }
 
 fetch_video() {
-	video_id=$(jq -r .\[$1\].id <<< "$data")
-	video_group=$(jq -r .\[$1\].group <<< "$data")
+	video_id=$(jq -r .\[$(($1-1))\].id <<< "$data")
+	video_group=$(jq -r .\[$(($1-1))\].group <<< "$data")
+	if [ $video_group = other ]; then video_group=$group; fi
 	http $MAIN_URL/$video_group/$video_id | xmllint --html \
 		--xpath 'string(//video/@src)' - 2>/dev/null
 }
 
 download_video() {
-	name=$(jq -r .\[$1\].title <<< "$data")
+	name=$(jq -r .\[$(($1-1))\].title <<< "$data")
 	echo -n Downloading $name...
 	fetch_video $1 | \
 		xargs -I@ $SHELL -c "http -o \""$name."\"\$(cut -d. -f4 <<< @) "@""
@@ -73,14 +74,18 @@ download_video() {
 }
 
 get_thumbnail() {
-	jq -r .\[$1\].image <<< "$data"
+	jq -r .\[$(($1-1))\].image <<< "$data"
+}
+
+get_thumbnails() {
+	jq -r .\[\].image <<< "$data"
 }
 
 list() {
-	echo Page $page
+	echo $group \| page $page
 	for i in {0..$length}; do
 		video=$(jq .\[$i\] <<< "$data")
-		printf %d.\  $i && jq -r .title <<< "$video"
+		printf %d.\  $((i+1)) && jq -r .title <<< "$video"
 	done
 }
 
@@ -90,7 +95,7 @@ list
 
 last=
 while true; do
-	printf "Your choice: ([0-$length] or ? for help) " && read ANSWER
+	printf "Your choice: ([1-$length] or ? for help) " && read ANSWER
 	case $ANSWER in
 		\?)
 			echo "Help:
@@ -134,6 +139,10 @@ p - go to the previous page (4 -> 3)"
 			last=$video
 			image=$(get_thumbnail $video)
 			$IMAGE_VIEWER $image
+			;;
+		a)
+			$IMAGE_VIEWER -\^ Catalog -t --index-info %u $(get_thumbnails)
+			echo
 			;;
 		s)
 			image=$(get_thumbnail $last)
