@@ -68,8 +68,8 @@ fetch_video() {
 download_video() {
 	name=$(jq -r .\[$(($1-1))\].title <<< "$data")
 	echo -n Downloading $name...
-	fetch_video $1 | \
-		xargs -I@ $SHELL -c "http -o \""$name."\"\$(cut -d. -f4 <<< @) "@""
+	video=$(fetch_video $1)
+	http -o "$name.$(cut -d. -f4 <<< "$video")" "$video"
 	echo \ done.
 }
 
