@@ -110,6 +110,8 @@ id - download ith video
 ii - show info for ith video
 c - set current category
 l - list current page's videos
+a - show all the current page's thumbnails
+/ - search videos
 q - quit
 
 If i is omitted for s and d, the last
@@ -156,6 +158,7 @@ p - go to the previous page (4 -> 3)"
 			download_video $video
 			;;
 		i)
+			last=${ANSWER%d}
 			get_info $last
 			;;
 		[0-9]i|[0-9][0-9]i)
@@ -186,10 +189,10 @@ p - go to the previous page (4 -> 3)"
 			;;
 		'c '*)
 			choice=${ANSWER:2}
-			if [[ "$choice" =~ "porn|snapchat|periscope" ]]; then
+			if [[ "$choice" =~ "^porn|snapchat|periscope|recent$" ]]; then
 				group=$choice
 			else
-				echo Please choose one of: porn, snapchat, periscope.
+				echo Please choose one of: porn, snapchat, periscope, recent.
 			fi
 			get_data $group\?page=$page && list
 			;;
